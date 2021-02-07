@@ -48,6 +48,8 @@ func main() {
 	for _,block := range blocks {
 		fmt.Println(block, string('\n'))
 	}
+	block_map := create_block_map(blocks)
+	fmt.Println(block_map)
 }
 
 func form_blocks(instrs []Instruction) []Block {
@@ -79,8 +81,23 @@ func form_blocks(instrs []Instruction) []Block {
 	return res
 }
 
+func create_block_map(blocks []Block) map[string]Block {
 
+	res := make(map[string]Block)
+	id := 0
 
+	for _,block := range blocks {
+		if len(block.instrs[0].Label) > 0 {
+			name := block.instrs[0].Label
+			res[name] = Block{block.instrs[1:]}
+		} else {
+			name := fmt.Sprintf("b%d", id)
+			id += 1
+			res[name] = block
+		}
+	}
+	return res
+}
 
 
 

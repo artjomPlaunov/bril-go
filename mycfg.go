@@ -44,14 +44,23 @@ func main() {
   var blocks []Block
   for _,f := range prog.Functions {
     blocks = create_blocks(f.Instrs)
-  }
-  block_map, names := create_block_map(blocks)
-  for key,val := range(block_map){
-	  fmt.Println(key,val)
+    block_map, names := create_block_map(blocks)
+    cfg := create_cfg(block_map, names)
+
+    graphString := fmt.Sprintf("digraph %s {\n", f.Name)
+    for _, name := range names {
+      graphString += fmt.Sprintf("  %s;\n", name)
+    }
+    for _, name := range names {
+      for _, succ := range cfg[name] {
+        graphString += fmt.Sprintf("  %s -> %s;\n", name, succ)
+      }
+    }
+    graphString += "}"
+    fmt.Println(graphString)
   }
 
-  cfg := create_cfg(block_map, names)
-  fmt.Println(cfg)
+
 }
 
 func create_cfg(block_map map[string]Block, names []string) map[string][]string{
@@ -96,8 +105,10 @@ func create_blocks(instrs []Instruction) []Block {
       }
     // Label.
     } else {
-      res = append(res, cur_block)
-      cur_block = Block{make([]Instruction,0)}
+      if len(cur_block.Instrs) > 0 {
+        res = append(res, cur_block)
+        cur_block = Block{make([]Instruction,0)}
+      }
       // Append label to start of new basic block.
       cur_block.Instrs = append(cur_block.Instrs, instr)
     }

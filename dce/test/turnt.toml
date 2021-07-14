@@ -1,0 +1,1 @@
+command = "bril2json < {filename} > tmp;  go run ../dce.go tmp | bril2txt; rm tmp"

@@ -46,22 +46,17 @@ func Create_blocks(instrs []bril.Instruction) []Block {
   cur_block := Block{make([]bril.Instruction,0)}
 
   for _,instr := range instrs {
-    // An actual instruction.
     if len(instr.Op) > 0 {
       cur_block.Instrs = append(cur_block.Instrs, instr)
-
-      // Check for terminator.
       if Terminators[instr.Op] == true {
         res = append(res, cur_block)
         cur_block = Block{make([]bril.Instruction,0)}
       }
-    // Label.
     } else {
       if len(cur_block.Instrs) > 0 {
         res = append(res, cur_block)
         cur_block = Block{make([]bril.Instruction,0)}
       }
-      // Append label to start of new basic block.
       cur_block.Instrs = append(cur_block.Instrs, instr)
     }
   }

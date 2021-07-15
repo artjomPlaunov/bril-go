@@ -19,6 +19,7 @@ type Lvn_value struct {
 
 type Lvn_row struct {
   Num     int
+  Value   Lvn_value
   Name    string
 }
 
@@ -32,6 +33,13 @@ func main() {
   for i,b := range blocks {
     blocks[i] = lvn(b)
   }
+  instrs := make([]bril.Instruction, 0)
+  for _,b := range blocks {
+    for _,i := range b.Instrs {
+      instrs = append(instrs, i)
+    }
+  }
+  prog.Functions[0].Instrs = instrs
 
   res,_ := json.Marshal(prog)
   fmt.Println(string(res))
@@ -45,53 +53,72 @@ func lvn(block cfg.Block) cfg.Block {
   next_var_id := 0
 
   // Lvn Table mapping canonical values to their value number and variable name.
-  lvn_table := make(map[Value]Lvn_row)
+  lvn_table := make([]Lvn_row, 0)
 
   // Environment mapping variable names to their current value numbers.
   env := make(map[string]int)
 
   for i, instr := range block.Instrs {
     lvn_val := construct_lvn_val(instr, env)
+    var lvn int
     // Handle print instructions.
     if instr.Op == "print" {
       // <><><><><><><><><>
     // Handle arithmetic instructions.
-    } else if is_arith_op(instr.Op) {
-      // Value has been computed before; reuse it.
-      if lvn_row, ok := lvn_table[lvn_val]; ok {
-        env[instr.Dest] = lvn_row.Num
-        // Replace instruction with id instruction.
-        block.Instrs[i] = construct_id_instr(lvn_row.Name, instr.Dest)
-      } else {
-
-
-      }
-    } else if instr.Op == "const" {
-      if lvn_row, ok := lvn_table[lvn_val]; ok {
-        env[instr.Dest] = lvn_row.Num
+    } else if is_arith_op(instr.Op) || instr.Op == "const" {
+      if lvn_row, ok := contains_val(lvn_table, lvn_val); ok {
+        lvn = lvn_row.Num
         block.Instrs[i] = construct_id_instr(lvn_row.Name, instr.Dest)
       } else {
         var dest string
         if is_overwritten(block.Instrs, i, instr.Dest) {
           dest = "lvn." + strconv.Itoa(next_var_id)
           next_var_id += 1
+          instr.Dest = dest
         } else {
           dest = instr.Dest
         }
-        lvn_table[lvn_val] = Lvn_row{next_lvn, dest}
+        lvn_table = append(lvn_table, Lvn_row{next_lvn, lvn_val ,dest})
+        lvn = next_lvn
+        next_lvn += 1
         for j,arg := range instr.Args {
-          
+          instr.Args[j] = get_var(lvn_table, env[arg])
         }
       }
     }
+    env[instr.Dest] = lvn
+  }/*
+  for _,row := range lvn_table {
+    fmt.Println(row)
   }
+  fmt.Println(env)*/
   return block
 }
 
-// Helper constructor functions
+func get_var(lvn_table []Lvn_row, lvn int) string {
+  for _, row := range lvn_table {
+    if row.Num == lvn {
+      return row.Name
+    }
+  }
+  return ""
+}
+
+// Lvn Table functions.
+func contains_val(lvn_table []Lvn_row, lvn_val Lvn_value) (Lvn_row, bool) {
+
+  for _,row := range lvn_table {
+    if is_eq_lvn_val(row.Value, lvn_val) {
+      return row,true
+    }
+  }
+  return Lvn_row{}, false
+}
+
+// Helper constructor functions.
 
 func construct_id_instr(name, dest string) bril.Instruction {
-  return  bril.instruction{
+  return  bril.Instruction{
             Op:   "id",
             Args: []string{name},
             Type: "int",
@@ -106,8 +133,7 @@ func construct_lvn_val(instr bril.Instruction, env map[string]int) Lvn_value {
     return Lvn_value{instr.Op,tmp,0}
   // Add, Mul, Sub, and Div Instructions.
   } else if is_arith_op(instr.Op) {
-    return Lvn_value{instr.Op, env[instr.Args[0], env[instr.Args[1]}
-  }
+    return Lvn_value{instr.Op, env[instr.Args[0]], env[instr.Args[1]]}
   }
   return Lvn_value{}
 }
@@ -115,13 +141,13 @@ func construct_lvn_val(instr bril.Instruction, env map[string]int) Lvn_value {
 // Helper Conditional checks
 
 func is_arith_op(op string) bool {
-  if op == "add" || op == "mul" || op == "sub" || op = "div" {
+  if op == "add" || op == "mul" || op == "sub" || op == "div" {
     return true
   } else {
     return false
   }
 }
-func is_overwritten(instrs []bril.Instruction, idx int, dest string) {
+func is_overwritten(instrs []bril.Instruction, idx int, dest string) bool {
   for i := idx+1; i < len(instrs); i++ {
     if instrs[i].Dest == dest {
       return true
@@ -130,7 +156,10 @@ func is_overwritten(instrs []bril.Instruction, idx int, dest string) {
   return false
 }
 
-
-
-
-
+func is_eq_lvn_val(v1, v2 Lvn_value) bool {
+  if v1.Op == v2.Op && v1.First == v2.First && v1.Second == v2.Second {
+    return true
+  } else {
+    return false
+  }
+}

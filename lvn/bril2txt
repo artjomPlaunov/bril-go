@@ -1,0 +1,1 @@
+{"functions":[{"instrs":[{"dest":"a","op":"const","type":"int","value":4},{"dest":"b","op":"const","type":"int","value":2},{"dest":"sum1","op":"add","type":"int","args":["",""]},{"dest":"sum2","op":"add","type":"int","args":["a","b"]},{"dest":"prod","op":"mul","type":"int","args":["","a"]},{"op":"print","args":["prod"]}],"name":"main"}]}

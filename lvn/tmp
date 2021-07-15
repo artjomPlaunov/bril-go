@@ -33,6 +33,15 @@
           "type": "int"
         },
         {
+          "labels": [
+            "label"
+          ],
+          "op": "jmp"
+        },
+        {
+          "label": "label"
+        },
+        {
           "args": [
             "sum1",
             "sum2"

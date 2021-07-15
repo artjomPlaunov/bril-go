@@ -59,7 +59,10 @@ func lvn(block cfg.Block) cfg.Block {
   env := make(map[string]int)
 
   for i, instr := range block.Instrs {
-    lvn_val := construct_lvn_val(instr, env)
+    lvn_val,ok := construct_lvn_val(instr, env)
+    if !ok {
+      return block
+    }
     var lvn int
     // Handle print instructions.
     if instr.Op == "print" {
@@ -74,7 +77,7 @@ func lvn(block cfg.Block) cfg.Block {
         if is_overwritten(block.Instrs, i, instr.Dest) {
           dest = "lvn." + strconv.Itoa(next_var_id)
           next_var_id += 1
-          instr.Dest = dest
+          block.Instrs[i].Dest = dest
         } else {
           dest = instr.Dest
         }
@@ -125,17 +128,24 @@ func construct_id_instr(name, dest string) bril.Instruction {
             Dest: dest }
 }
 
-func construct_lvn_val(instr bril.Instruction, env map[string]int) Lvn_value {
+func construct_lvn_val(instr bril.Instruction,
+                       env map[string]int) (Lvn_value,bool) {
   // Const Instructions.
   if instr.Op == "const" {
     tmp, _ := strconv.Atoi(string(instr.Value))
     // If Op is const, then the First struct field holds the constant value.
-    return Lvn_value{instr.Op,tmp,0}
+    return Lvn_value{instr.Op,tmp,0}, true
   // Add, Mul, Sub, and Div Instructions.
   } else if is_arith_op(instr.Op) {
-    return Lvn_value{instr.Op, env[instr.Args[0]], env[instr.Args[1]]}
+    v1,ok1 := env[instr.Args[0]]
+    v2,ok2 := env[instr.Args[1]]
+    if (!ok1) || (!ok2) {
+      return Lvn_value{}, false
+    }
+
+    return Lvn_value{instr.Op, v1, v2}, true
   }
-  return Lvn_value{}
+  return Lvn_value{}, true
 }
 
 // Helper Conditional checks

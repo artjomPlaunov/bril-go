@@ -45,6 +45,7 @@ func main() {
   fmt.Println(string(res))
 }
 
+// lvn algorithm
 func lvn(block cfg.Block) cfg.Block {
   // Local Value Numbers
   next_lvn := 1
@@ -60,27 +61,26 @@ func lvn(block cfg.Block) cfg.Block {
 
   for i, instr := range block.Instrs {
     lvn_val,ok := construct_lvn_val(instr, env)
+    // Short-circuit and return on blocks that try to use non-local values. 
     if !ok {
       return block
     }
+
     var lvn int
-    // Handle print instructions.
-    if instr.Op == "print" {
-      // <><><><><><><><><>
-    // Handle arithmetic instructions.
-    } else if is_arith_op(instr.Op) || instr.Op == "const" {
+    var dest string
+    if instr.Op == "id" {
+      dest = check_overwrite(block, i, instr.Dest, &next_var_id)
+      instr.Dest = dest
+      env[dest] = env[instr.Args[0]]
+      block.Instrs[i] = construct_id_instr(
+                          get_var(lvn_table, env[dest]),
+                          dest)
+    } else if len(instr.Dest) > 0 {
       if lvn_row, ok := contains_val(lvn_table, lvn_val); ok {
         lvn = lvn_row.Num
         block.Instrs[i] = construct_id_instr(lvn_row.Name, instr.Dest)
       } else {
-        var dest string
-        if is_overwritten(block.Instrs, i, instr.Dest) {
-          dest = "lvn." + strconv.Itoa(next_var_id)
-          next_var_id += 1
-          block.Instrs[i].Dest = dest
-        } else {
-          dest = instr.Dest
-        }
+        dest = check_overwrite(block, i, instr.Dest, &next_var_id)
         lvn_table = append(lvn_table, Lvn_row{next_lvn, lvn_val ,dest})
         lvn = next_lvn
         next_lvn += 1
@@ -88,8 +88,8 @@ func lvn(block cfg.Block) cfg.Block {
           instr.Args[j] = get_var(lvn_table, env[arg])
         }
       }
+      env[instr.Dest] = lvn
     }
-    env[instr.Dest] = lvn
   }/*
   for _,row := range lvn_table {
     fmt.Println(row)
@@ -142,8 +142,13 @@ func construct_lvn_val(instr bril.Instruction,
     if (!ok1) || (!ok2) {
       return Lvn_value{}, false
     }
-
     return Lvn_value{instr.Op, v1, v2}, true
+  } else if instr.Op == "id" {
+    v,ok := env[instr.Args[0]]
+    if (!ok) {
+      return Lvn_value{}, false
+    }
+    return Lvn_value{instr.Op, v, 0}, true
   }
   return Lvn_value{}, true
 }
@@ -171,5 +176,19 @@ func is_eq_lvn_val(v1, v2 Lvn_value) bool {
     return true
   } else {
     return false
+  }
+}
+
+func check_overwrite(block cfg.Block,
+                     i int,
+                     dest string,
+                     next_var_id * int) string {
+  if is_overwritten(block.Instrs, i, dest) {
+    res := "lvn." + strconv.Itoa(*next_var_id)
+    *next_var_id += 1
+    block.Instrs[i].Dest = res
+    return res
+  } else {
+    return dest
   }
 }
